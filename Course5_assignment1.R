@@ -1,29 +1,17 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-  author: "Ali Murat Okur"
-    date: "May 12, 2017"
-      output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(ggplot2)
-options(digits=1)
-```
-Part 1 - What is mean total number of steps taken per day?
+options(digits=2)
 
-Calculated this on a day-by-day basis as it makes more sense for later portions of the assignment. 
+getwd()
+setwd("./Course5")
 
-```{r part1.1}
 #read in data
 activity <- read.csv("activity.csv", sep =",", stringsAsFactors = FALSE, na.strings = "NA")
+
 #convert date to Date class
 activity$date <- as.Date(activity$date)
-```
 
-Part 1 - What is mean total number of steps taken per day?
-```{r part1.2}
+#Part 1 - What is mean total number of steps taken per day?
 #Use complete cases only
 activityComplete <- activity[complete.cases(activity),]
 
@@ -33,40 +21,35 @@ head(totalStepsByDay)
 #mean and median of all days
 mean(totalStepsByDay$steps)
 median(totalStepsByDay$steps)
-```
 
-The first plot below shows total steps taken per separated into 20 bins
-
-```{r plot1, echo=TRUE}
+#create histogram of total steps by day
 p1 <- ggplot(data = totalStepsByDay, aes(totalStepsByDay$steps)) + 
   geom_histogram(bins = 20, fill = "green", col="black") +
   labs(x = "Total Steps") +
-  labs(y = "Day Count") +
+  labs(y = "Frequency") +
   ylim(c(0,10)) +
   labs(title = "Total Steps per Day (20 bins)")
-p1
-```
+ggsave(file = "Plot1.png")
 
-Part 2 - What is the average daily activity pattern?
-```{r part2, echo=TRUE}
+##Part 2 - What is the average daily activity pattern?
 ##Group by interval and calculate mean, and max steps
 byInterval <- group_by(activityComplete, interval )
 meanByInterval <- as.data.frame(summarize(byInterval, mean = mean(steps)))
 maxStepsData <- subset(meanByInterval, meanByInterval$mean==max(meanByInterval$mean))
-```
 
-```{r plot2, echo = TRUE}
 ##Plot the average value of the intervals and highlight average and max values 
-plot(meanByInterval, type = "l", xlab = "Interval", ylab = "Steps Taken", main="Average steps taken by Interval")
+png('plot1.1.png')
+plot(meanByInterval, type = "l", xlab = "Interval", ylab = "Steps Taken", main="Average steps taken by interval")
 abline(h=mean(activityComplete$steps), col = "red")
 points(maxStepsData$interval[], maxStepsData$mean[], col="red")
-```
+dev.off()
 
-The maximum interval and steps shown by the point above at an interval of `r maxStepsData$interval[]` with `r maxStepsData$mean[]` steps
 
-Part 3 - Imputing missing values
+#the maximum interval and steps shown by the point above is:
+maxStepsData$interval
+maxStepsData$mean
 
-```{r part3, echo = TRUE}
+##Part 3 - imputing missing values
 #Function returnMean - Input: missing interval value. Output:matching mean steps from interval across dataset
 returnMean <- function(interval){
   #lookup and return valid mean value
@@ -83,53 +66,42 @@ for (index in 1:nrow(activityImputed)) {
     activityImputed[index, ] <- rowData
   }
 }
-#Aggregate by day with imputed values of intervals
+
+#aggregate by day with imputed values
 totalStepsByDayImputed <- aggregate(steps ~ date, data = activityImputed, FUN=sum)
-#Mean and median of all days imputed 
+#mean and median of all days imputed 
 mean(totalStepsByDayImputed$steps)
 median(totalStepsByDayImputed$steps)
-```
 
-The results of the imputation are mean and median of `r as.integer(mean(totalStepsByDayImputed$steps)[])` and `r as.integer(median(totalStepsByDayImputed$steps)[])`, respectively. 
-This compares to the non-imputed previous values of `r as.integer(mean(totalStepsByDay$steps))` and `r as.integer(median(totalStepsByDay$steps))`
 
-This may seem incorrect at first but further analysis reveals that 8 days are completely missing:
-```{r part3.2, echo=TRUE}
+#this may seem incorrect at first but further analysis reveals that 8 days are completely missing.
 aggregate(interval ~ date, data = subset(activity, is.na(activity$steps)==TRUE), FUN=length)
-```
+#thus calculation by average interval impution is going to assing all those days to the mean value and skew everything center
 
-Thus the imputation method using mean intervals or days will simply skew to the middle as the missing values are filled in the average value of `r as.integer(mean(totalStepsByDay$steps))`. This is evident in the plot below:
-
-```{r plot3}
 p2 <- ggplot(data = totalStepsByDayImputed, aes(totalStepsByDayImputed$steps)) + 
   geom_histogram(bins = 20, fill = "green", col="black") +
   labs(x = "Total Steps") +
   labs(y = "Frequency") +
   ylim(c(0,15)) +
   labs(title = "Total Steps per Day Imputed (20 bins)")
-p2
-```
+ggsave(file = "Plot2.png")
 
-Part 4 - Weekday/weekend activity patterns
-Are there differences in activity patterns between weekdays and weekends?
-```{r part4.1}
+
+
+##Part 4 - Weekday/weekend activity patterns
+#Are there differences in activity patterns between weekdays and weekends?
 ##modified from: http://stackoverflow.com/questions/28893193/creating-factor-variables-weekend-and-weekday-from-date
 ##categorize imputed activities by weekday/weekend
 activityImputed$day <- factor(weekdays(activityImputed$date) %in% c("Saturday", "Sunday"),
                                       levels= c(TRUE, FALSE),
                                       labels= c('Weekend', 'Weekday'))
 
+
 p3 <- ggplot(activityImputed, aes(interval,steps)) + 
   geom_line(color="red") +
   facet_grid(day ~ .)
-p3
-```
-
-From our plot above we can see that Weekends are more active near the evening hours of 1500 to 1700 Hours in 24hr format while Weekdays are especially active during the morning hours until about 1000. This makes sense given the normal workweek schedule. 
-
-As expected hours during regular sleep hours show minimal activity.
+ggsave(file = "Plot3.png")
 
 
-
-
-
+library(rmarkdown)
+render("PA1_Template.rmd")
